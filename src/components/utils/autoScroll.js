@@ -1,7 +1,7 @@
 // Distance from the top/bottom edge (px) in which a drag auto-scrolls.
 export const AUTO_SCROLL_EDGE_PX = 60;
 // Scroll step (px per animation frame) at, or beyond, the edge itself.
-export const AUTO_SCROLL_MAX_SPEED = 24;
+export const AUTO_SCROLL_MAX_SPEED = 12;
 
 // Signed scroll step (px per frame) for a drag pointer at clientY in the
 // scrollable band top..bottom (viewport coordinates): negative within
