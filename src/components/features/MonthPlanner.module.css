@@ -105,13 +105,18 @@
   outline-offset: 1px;
 }
 
-.dayToday {
-  border-color: #fd7e14;
+/* Selected days keep their heat tint (shifted up so even an empty day reads
+   as selected) so hours stay comparable across a selection; an inner ring
+   and dark blue text mark them. Max ~55% opacity keeps #052c65 text above
+   6:1 contrast. The ring is a shadow so hover/today borders still show. */
+.daySelected {
+  background-color: rgba(13, 110, 253, calc(0.14 + var(--heat, 0) * 0.4));
+  box-shadow: inset 0 0 0 2px #0d6efd;
+  color: #052c65;
 }
 
-.daySelected {
-  background-color: #0d6efd;
-  color: #fff;
+.dayToday {
+  border-color: #fd7e14;
 }
 
 .dayNumber {
