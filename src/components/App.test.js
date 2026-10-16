@@ -1,4 +1,10 @@
-import { screen, render, fireEvent, waitFor } from '@testing-library/react';
+import {
+  screen,
+  render,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { Provider } from 'react-redux';
 import timekeeper from 'timekeeper';
 import { http, delay } from 'msw';
@@ -1427,5 +1433,424 @@ describe('display events', () => {
     expect(screen.getByText('11/02').parentNode).toHaveClass('listItemLight');
     expect(screen.getByText('11/08').parentNode).toHaveClass('listItemDark');
     expect(screen.getByText('11/15').parentNode).toHaveClass('listItemLight');
+  });
+});
+
+describe('day planner', () => {
+  // Frozen "now" is Mon 1 Jan 2018, 11:00 Berlin time.
+  const plannerEvents = [
+    // Fri 5 Jan 2018, 09:00-12:30 Berlin
+    {
+      start: { dateTime: '2018-01-05T08:00:00Z' },
+      end: { dateTime: '2018-01-05T11:30:00Z' },
+    },
+    // Wed 10 Jan 2018, 10:00-12:00 Berlin
+    {
+      start: { dateTime: '2018-01-10T09:00:00Z' },
+      end: { dateTime: '2018-01-10T11:00:00Z' },
+    },
+    // Fri 2 Feb 2018, 10:00-11:00 Berlin
+    {
+      start: { dateTime: '2018-02-02T09:00:00Z' },
+      end: { dateTime: '2018-02-02T10:00:00Z' },
+    },
+  ];
+
+  const setConfig = (config) =>
+    window.localStorage.setItem(
+      'config',
+      JSON.stringify({ selectedCalendarId: 'test-id', ...config })
+    );
+
+  const readConfig = () => JSON.parse(window.localStorage.getItem('config'));
+
+  const renderPlanner = async () => {
+    const view = renderApp();
+    await screen.findByTestId('MonthPlanner');
+    return view;
+  };
+
+  const getDay = (day) => document.querySelector(`[data-day="${day}"]`);
+  const getTotal = () => screen.getByTestId('SelectionTotal');
+
+  const mockElementFromPoint = (day) => {
+    document.elementFromPoint = jest.fn(() => getDay(day));
+  };
+
+  const drag = (from, to) => {
+    fireEvent.pointerDown(getDay(from));
+    mockElementFromPoint(to);
+    fireEvent.pointerMove(getDay(from));
+  };
+
+  beforeEach(() => {
+    mockEventsResponse.mockReturnValue(plannerEvents);
+    setConfig({ view: 'planner' });
+  });
+
+  afterEach(() => {
+    delete document.elementFromPoint;
+  });
+
+  it('switches between hours and planner view and persists the choice', async () => {
+    setConfig({});
+
+    renderApp();
+
+    expect(await screen.findByTestId('RangeSelectList')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hours' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Planner' }));
+
+    expect(screen.getByTestId('MonthPlanner')).toBeInTheDocument();
+    expect(screen.queryByTestId('RangeSelectList')).not.toBeInTheDocument();
+    expect(screen.getByTestId('CalendarsList')).toBeInTheDocument();
+    expect(readConfig().view).toBe('planner');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hours' }));
+
+    expect(screen.getByTestId('RangeSelectList')).toBeInTheDocument();
+    expect(screen.queryByTestId('MonthPlanner')).not.toBeInTheDocument();
+    expect(readConfig().view).toBe('hours');
+  });
+
+  it('restores the planner view from localStorage', async () => {
+    await renderPlanner();
+
+    expect(screen.queryByTestId('RangeSelectList')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Planner' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('shows a message when no calendar is selected', async () => {
+    window.localStorage.setItem('config', JSON.stringify({ view: 'planner' }));
+
+    renderApp();
+
+    expect(
+      await screen.findByText('Please select a calendar to plan days.')
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('MonthPlanner')).not.toBeInTheDocument();
+  });
+
+  it('shows a loading state while events load', async () => {
+    window.sessionStorage.setItem('accessToken', 'eventsWithDelay');
+
+    renderApp();
+
+    expect(await screen.findByText('Loading events…')).toBeInTheDocument();
+    expect(screen.queryByTestId('MonthPlanner')).not.toBeInTheDocument();
+  });
+
+  it('renders hours in the matching day cells', async () => {
+    await renderPlanner();
+
+    expect(
+      screen.getByRole('region', { name: 'January 2018' })
+    ).toBeInTheDocument();
+    expect(getDay('2018-01-05')).toHaveTextContent('53.5h');
+    expect(getDay('2018-01-05')).toHaveAccessibleName(
+      'Fri 5 Jan 2018, 3.5 hours'
+    );
+    expect(getDay('2018-01-10')).toHaveTextContent('102h');
+    expect(getDay('2018-01-04')).toHaveTextContent(/^4$/);
+    expect(getDay('2018-01-04')).toHaveAccessibleName(
+      'Thu 4 Jan 2018, 0 hours'
+    );
+    expect(getDay('2018-01-01')).toHaveAttribute('aria-current', 'date');
+    expect(getDay('2018-01-02')).not.toHaveAttribute('aria-current');
+    // Only January is shown, without leading/trailing day buttons.
+    expect(document.querySelectorAll('[data-day]')).toHaveLength(31);
+    expect(
+      screen.getByRole('button', { name: /^Toggle all days of January 2018/ })
+    ).toHaveTextContent('January 20185.5 h');
+  });
+
+  it('toggles a day on click and updates the total', async () => {
+    await renderPlanner();
+
+    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(getDay('2018-01-05'));
+
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'true');
+    expect(getTotal()).toHaveTextContent('1 day · 3.5 h');
+    expect(getTotal()).toHaveTextContent('Jan 2018: 1 d · 3.5 h');
+
+    fireEvent.click(getDay('2018-01-10'));
+
+    expect(getTotal()).toHaveTextContent('2 days · 5.5 h');
+
+    fireEvent.click(getDay('2018-01-05'));
+
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'false');
+    expect(getTotal()).toHaveTextContent('1 day · 2 h');
+  });
+
+  it('toggles a day on a pointer tap followed by its click exactly once', async () => {
+    await renderPlanner();
+
+    fireEvent.pointerDown(getDay('2018-01-05'));
+    // A tap shows the pending state before the click commits it.
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.pointerUp(getDay('2018-01-05'));
+    fireEvent.click(getDay('2018-01-05'));
+
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'true');
+    expect(getTotal()).toHaveTextContent('1 day · 3.5 h');
+  });
+
+  it('selects a range by dragging, with a preview before committing', async () => {
+    await renderPlanner();
+
+    drag('2018-01-04', '2018-01-10');
+
+    // Preview only: rendered as selected, but not committed yet.
+    expect(getDay('2018-01-07')).toHaveAttribute('aria-pressed', 'true');
+    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+    expect(readConfig().selectedDays).toBeUndefined();
+
+    fireEvent.pointerUp(window);
+    // The browser fires a click on the common ancestor/cell under pointer;
+    // it must not toggle the end day back.
+    fireEvent.click(getDay('2018-01-10'));
+
+    expect(getTotal()).toHaveTextContent('7 days · 5.5 h');
+    expect(getDay('2018-01-03')).toHaveAttribute('aria-pressed', 'false');
+    expect(getDay('2018-01-04')).toHaveAttribute('aria-pressed', 'true');
+    expect(getDay('2018-01-10')).toHaveAttribute('aria-pressed', 'true');
+    expect(getDay('2018-01-11')).toHaveAttribute('aria-pressed', 'false');
+    expect(readConfig().selectedDays).toEqual([
+      '2018-01-04',
+      '2018-01-05',
+      '2018-01-06',
+      '2018-01-07',
+      '2018-01-08',
+      '2018-01-09',
+      '2018-01-10',
+    ]);
+  });
+
+  it('selects a range when dragging backwards', async () => {
+    await renderPlanner();
+
+    drag('2018-01-06', '2018-01-04');
+    fireEvent.pointerUp(window);
+
+    expect(getTotal()).toHaveTextContent('3 days · 3.5 h');
+  });
+
+  it('deselects a range when the drag starts on a selected day', async () => {
+    await renderPlanner();
+
+    drag('2018-01-01', '2018-01-12');
+    fireEvent.pointerUp(window);
+    expect(getTotal()).toHaveTextContent('12 days · 5.5 h');
+
+    drag('2018-01-05', '2018-01-08');
+    expect(getDay('2018-01-06')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.pointerUp(window);
+
+    expect(getTotal()).toHaveTextContent('8 days · 2 h');
+    expect(getDay('2018-01-04')).toHaveAttribute('aria-pressed', 'true');
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'false');
+    expect(getDay('2018-01-08')).toHaveAttribute('aria-pressed', 'false');
+    expect(getDay('2018-01-09')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('cancels a drag with Escape', async () => {
+    await renderPlanner();
+
+    drag('2018-01-04', '2018-01-10');
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(getDay('2018-01-07')).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.pointerUp(window);
+    fireEvent.click(getDay('2018-01-04'));
+
+    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+  });
+
+  it('ignores pointer moves outside of day cells', async () => {
+    await renderPlanner();
+
+    fireEvent.pointerDown(getDay('2018-01-04'));
+    document.elementFromPoint = jest.fn(() => document.body);
+    fireEvent.pointerMove(window);
+    fireEvent.pointerUp(window);
+    fireEvent.click(getDay('2018-01-04'));
+
+    expect(getTotal()).toHaveTextContent('1 day · 0 h');
+  });
+
+  it('selects a range with shift-click from the last clicked day', async () => {
+    await renderPlanner();
+
+    fireEvent.click(getDay('2018-01-03'));
+    fireEvent.click(getDay('2018-01-06'), { shiftKey: true });
+
+    expect(getTotal()).toHaveTextContent('4 days · 3.5 h');
+    expect(getDay('2018-01-02')).toHaveAttribute('aria-pressed', 'false');
+    expect(getDay('2018-01-07')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('toggles a single day on shift-click without a previous click', async () => {
+    await renderPlanner();
+
+    fireEvent.click(getDay('2018-01-05'), { shiftKey: true });
+
+    expect(getTotal()).toHaveTextContent('1 day · 3.5 h');
+  });
+
+  it('toggles the whole month via its header', async () => {
+    await renderPlanner();
+
+    const header = screen.getByRole('button', {
+      name: /^Toggle all days of January 2018/,
+    });
+
+    fireEvent.click(getDay('2018-01-05'));
+    fireEvent.click(header);
+
+    expect(getTotal()).toHaveTextContent('31 days · 5.5 h');
+    expect(getTotal()).toHaveTextContent('Jan 2018: 31 d · 5.5 h');
+
+    fireEvent.click(header);
+
+    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+  });
+
+  it('clears the selection', async () => {
+    await renderPlanner();
+
+    const clear = screen.getByRole('button', { name: 'Clear' });
+    expect(clear).toBeDisabled();
+
+    fireEvent.click(getDay('2018-01-05'));
+    fireEvent.click(getDay('2018-01-10'));
+    expect(clear).toBeEnabled();
+
+    fireEvent.click(clear);
+
+    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+    expect(clear).toBeDisabled();
+    expect(readConfig().selectedDays).toEqual([]);
+  });
+
+  it('navigates months with prev, next and today', async () => {
+    await renderPlanner();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+
+    expect(
+      screen.getByRole('region', { name: 'February 2018' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'January 2018' })
+    ).not.toBeInTheDocument();
+    expect(getDay('2018-02-02')).toHaveAccessibleName('Fri 2 Feb 2018, 1 hour');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+
+    expect(
+      screen.getByRole('region', { name: 'December 2017' })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+
+    expect(
+      screen.getByRole('region', { name: 'January 2018' })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the selection while navigating and totals per month', async () => {
+    await renderPlanner();
+
+    fireEvent.click(getDay('2018-01-05'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    fireEvent.click(getDay('2018-02-02'));
+
+    expect(getTotal()).toHaveTextContent('2 days · 4.5 h');
+    expect(getTotal()).toHaveTextContent('Jan 2018: 1 d · 3.5 h');
+    expect(getTotal()).toHaveTextContent('Feb 2018: 1 d · 1 h');
+  });
+
+  it('shows 3 and 12 months and persists the layout', async () => {
+    await renderPlanner();
+
+    fireEvent.click(screen.getByRole('button', { name: '3 mo' }));
+
+    expect(screen.getByRole('button', { name: '3 mo' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(
+      screen.getAllByRole('region').map((region) => region.dataset.month)
+    ).toEqual(['2018-01', '2018-02', '2018-03']);
+    expect(readConfig().monthsShown).toBe(3);
+
+    fireEvent.click(screen.getByRole('button', { name: '12 mo' }));
+
+    expect(screen.getAllByRole('region')).toHaveLength(12);
+    expect(
+      screen.getByRole('region', { name: 'December 2018' })
+    ).toBeInTheDocument();
+  });
+
+  it('drags a range across months in the 3 month layout', async () => {
+    setConfig({ view: 'planner', monthsShown: 3 });
+
+    await renderPlanner();
+
+    drag('2018-01-30', '2018-02-02');
+    fireEvent.pointerUp(window);
+
+    expect(getTotal()).toHaveTextContent('4 days · 1 h');
+    expect(getTotal()).toHaveTextContent('Jan 2018: 2 d · 0 h');
+    expect(getTotal()).toHaveTextContent('Feb 2018: 2 d · 1 h');
+  });
+
+  it('restores the selection after reloading the store from localStorage', async () => {
+    const { unmount } = await renderPlanner();
+
+    fireEvent.click(getDay('2018-01-05'));
+    fireEvent.click(getDay('2018-01-10'));
+    fireEvent.click(screen.getByRole('button', { name: '3 mo' }));
+    unmount();
+
+    await renderPlanner();
+
+    expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'true');
+    expect(getDay('2018-01-10')).toHaveAttribute('aria-pressed', 'true');
+    expect(getTotal()).toHaveTextContent('2 days · 5.5 h');
+    expect(screen.getAllByRole('region')).toHaveLength(3);
+  });
+
+  it('reorders the weekday header when the week start changes', async () => {
+    await renderPlanner();
+
+    const weekdays = () =>
+      within(screen.getByRole('region', { name: 'January 2018' })).getByTestId(
+        'Weekdays'
+      );
+
+    expect(weekdays()).toHaveTextContent('MonTueWedThuFriSatSun');
+    // 1 Jan 2018 is a Monday: no leading empty cells.
+    expect(weekdays().nextSibling.firstChild).toBe(getDay('2018-01-01'));
+
+    fireEvent.click(screen.getByLabelText('Sunday'));
+
+    expect(weekdays()).toHaveTextContent('SunMonTueWedThuFriSat');
+    expect(weekdays().nextSibling.firstChild).not.toHaveAttribute('data-day');
+    expect(weekdays().nextSibling.children[1]).toBe(getDay('2018-01-01'));
+    expect(readConfig().weekStart).toBe('sunday');
   });
 });
