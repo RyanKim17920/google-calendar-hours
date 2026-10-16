@@ -33,6 +33,8 @@ const MONTH_FORMAT = 'YYYY-MM';
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // Hours at which the heat shading of a day reaches full intensity.
 const HEAT_FULL_HOURS = 10;
+// Minimum intensity of any day with hours, so a short day is still visible.
+const HEAT_FLOOR = 0.25;
 
 const getWeekdayNames = (weekStart) =>
   weekStart === WEEK_START.SUNDAY
@@ -69,6 +71,17 @@ const getDayFromElement = (element) =>
 const isInRange = (day, from, to) =>
   from <= to ? day >= from && day <= to : day >= to && day <= from;
 
+// Heat intensity 0..1 of a day: 0 without (rounded) hours, otherwise a square
+// root curve from HEAT_FLOOR up to 1, so light days stay distinguishable while
+// busy days still saturate. The CSS maps it to a capped tint opacity.
+const getHeat = (roundedHours) => {
+  if (roundedHours <= 0) {
+    return 0;
+  }
+  const ratio = Math.min(roundedHours / HEAT_FULL_HOURS, 1);
+  return HEAT_FLOOR + (1 - HEAT_FLOOR) * Math.sqrt(ratio);
+};
+
 const formatHoursLabel = (hours) =>
   `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 
@@ -85,7 +98,7 @@ const DayCell = ({ day, hours, isSelected, isToday, onClick }) => {
         [styles.dayToday]: isToday,
         [styles.dayEmpty]: rounded === 0,
       })}
-      style={{ '--heat': Math.min(hours / HEAT_FULL_HOURS, 1) }}
+      style={{ '--heat': getHeat(rounded) }}
       aria-pressed={isSelected}
       aria-current={isToday ? 'date' : undefined}
       aria-label={`${date.format('ddd D MMM YYYY')}, ${formatHoursLabel(

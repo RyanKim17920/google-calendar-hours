@@ -87,7 +87,9 @@
   justify-content: center;
   padding: 2px 0;
   border: 2px solid transparent;
-  background-color: rgba(13, 110, 253, calc(var(--heat, 0) * 0.18));
+
+  /* Capped at 35% opacity so dark text stays readable on the busiest day. */
+  background-color: rgba(13, 110, 253, calc(var(--heat, 0) * 0.35));
   border-radius: 4px;
   color: #212529;
   font-variant-numeric: tabular-nums;

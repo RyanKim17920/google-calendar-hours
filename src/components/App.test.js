@@ -1571,6 +1571,18 @@ describe('day planner', () => {
     ).toHaveTextContent('January 20185.5 h');
   });
 
+  it('shades days by hours with a visible floor for light days', async () => {
+    await renderPlanner();
+
+    const heat = (day) => Number(getDay(day).style.getPropertyValue('--heat'));
+
+    expect(heat('2018-01-04')).toBe(0);
+    // 2h: sqrt curve above the 0.25 floor, not a barely visible 0.2.
+    expect(heat('2018-01-10')).toBeCloseTo(0.25 + 0.75 * Math.sqrt(0.2));
+    expect(heat('2018-01-05')).toBeGreaterThan(heat('2018-01-10'));
+    expect(heat('2018-01-05')).toBeLessThan(1);
+  });
+
   it('toggles a day on click and updates the total', async () => {
     await renderPlanner();
 
