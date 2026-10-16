@@ -13,6 +13,16 @@ npm install
 npm dev
 ```
 
+### Environment variables
+
+Set these in `.env.local` (or in your hosting provider's settings). Both are
+inlined at build time.
+
+| Variable                       | Description                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | OAuth 2.0 Web client id from the Google Cloud console (Calendar API enabled).                                                                   |
+| `NEXT_PUBLIC_REDIRECT_URI`     | URL Google redirects back to after auth, e.g. `http://localhost:3000`. Must be listed as an authorized redirect URI (and origin) on the client. |
+
 To get the production build you need to
 
 ```
