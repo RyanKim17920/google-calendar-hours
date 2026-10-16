@@ -20,11 +20,17 @@
   font-weight: bold;
 }
 
+/* One line of chips: 20px badge + 6px gap above. */
+.chipRow {
+  min-height: 26px;
+  padding-top: 6px;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
   padding: 0;
-  margin: 6px 0 0;
+  margin: 0;
   gap: 4px;
   list-style: none;
 }
@@ -36,4 +42,10 @@
   background-color: #e9ecef;
   font-variant-numeric: tabular-nums;
   font-weight: normal;
+}
+
+.hint {
+  margin: 0;
+  color: grey;
+  line-height: 20px;
 }

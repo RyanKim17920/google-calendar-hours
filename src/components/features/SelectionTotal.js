@@ -27,15 +27,21 @@ const SelectionTotal = () => {
           Clear
         </button>
       </div>
-      {byMonth.length > 0 && (
-        <ul className={styles.chips} aria-label="Selected days per month">
-          {byMonth.map(({ month, dayCount: days, hours }) => (
-            <li key={month} className={cx('badge', styles.chip)}>
-              {`${formatMonth(month)}: ${days} d · ${hours} h`}
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* The row always takes space so the grid doesn't jump on the first
+          selection. */}
+      <div className={styles.chipRow}>
+        {byMonth.length > 0 ? (
+          <ul className={styles.chips} aria-label="Selected days per month">
+            {byMonth.map(({ month, dayCount: days, hours }) => (
+              <li key={month} className={cx('badge', styles.chip)}>
+                {`${formatMonth(month)}: ${days} d · ${hours} h`}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className={styles.hint}>Click or drag days to select</p>
+        )}
+      </div>
     </div>
   );
 };

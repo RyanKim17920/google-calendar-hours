@@ -1756,6 +1756,27 @@ describe('day planner', () => {
     expect(readConfig().selectedDays).toEqual([]);
   });
 
+  it('shows a hint in place of the month chips while nothing is selected', async () => {
+    await renderPlanner();
+
+    const hint = 'Click or drag days to select';
+    expect(getTotal()).toHaveTextContent(hint);
+    expect(
+      screen.queryByRole('list', { name: 'Selected days per month' })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(getDay('2018-01-05'));
+
+    expect(getTotal()).not.toHaveTextContent(hint);
+    expect(
+      screen.getByRole('list', { name: 'Selected days per month' })
+    ).toHaveTextContent('Jan 2018: 1 d · 3.5 h');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+    expect(getTotal()).toHaveTextContent(hint);
+  });
+
   it('navigates months with prev, next and today', async () => {
     await renderPlanner();
 
