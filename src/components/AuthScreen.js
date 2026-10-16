@@ -1,6 +1,8 @@
 import { Fragment } from 'react';
 import { encode } from 'qss';
 
+import { clearAuthError } from './stores/storage';
+
 const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 const googleScope =
   'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly';
@@ -16,8 +18,40 @@ const getGoogleAuthUrl = () => {
   return `https://accounts.google.com/o/oauth2/auth?${params}`;
 };
 
-const App = () => (
+const ENABLE_API_HINT =
+  'Enable the Google Calendar API in your Google Cloud project (APIs & Services → Library → Google Calendar API), wait a minute, then retry.';
+const SCOPE_HINT =
+  "Tick the calendar permission checkboxes on Google's consent screen, then retry.";
+
+// Google reports the same problem with a legacy reason (errors[].reason) or a
+// newer one (details[].reason); map both to one actionable hint.
+const HINTS = {
+  accessNotConfigured: ENABLE_API_HINT,
+  SERVICE_DISABLED: ENABLE_API_HINT,
+  insufficientPermissions: SCOPE_HINT,
+  ACCESS_TOKEN_SCOPE_INSUFFICIENT: SCOPE_HINT,
+  access_denied:
+    "Access was denied on Google's consent screen. Authorize again and allow calendar access.",
+};
+
+// eslint-disable-next-line react/prop-types
+const AuthError = ({ error: { reason, message } }) => {
+  const hint = HINTS[reason];
+
+  return (
+    <div className="alert alert-danger" role="alert" data-testid="AuthError">
+      <p className="mb-0">{hint ?? message}</p>
+      {hint && message && (
+        <p className="mb-0 mt-2 small">Google said: {message}</p>
+      )}
+    </div>
+  );
+};
+
+// eslint-disable-next-line react/prop-types
+const AuthScreen = ({ error = null }) => (
   <Fragment>
+    {error && <AuthError error={error} />}
     <p>
       This web app lets you see how many hours you spend on a Google Calendar.
       It uses the Google Calendar API to fetch your calendars and events,
@@ -26,7 +60,11 @@ const App = () => (
     </p>
 
     <p>You need to authorize the app with the following link:</p>
-    <a href={getGoogleAuthUrl()} data-testid="AuthLink">
+    <a
+      href={getGoogleAuthUrl()}
+      onClick={clearAuthError}
+      data-testid="AuthLink"
+    >
       <img
         src="./google_auth.png"
         alt="Auth with Google"
@@ -52,4 +90,4 @@ const App = () => (
   </Fragment>
 );
 
-export default App;
+export default AuthScreen;
