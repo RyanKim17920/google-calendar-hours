@@ -8,7 +8,7 @@ import viewState from './viewState';
 import calendarEvents from './calendarEvents';
 import selection, { getSelectionState } from './selection';
 import { getConfig } from './storage';
-import { RANGE_TYPE, WEEK_START } from '../constants';
+import { RANGE_TYPE, VIEW, WEEK_START } from '../constants';
 
 dayjs.extend(weekday);
 
@@ -32,6 +32,7 @@ const getViewState = () => {
         : dayjs().startOf('day').toJSON(),
     currentDatePointerEnd: config.end,
     weekStart: config.weekStart ?? WEEK_START.MONDAY,
+    view: Object.values(VIEW).includes(config.view) ? config.view : VIEW.HOURS,
   };
 };
 

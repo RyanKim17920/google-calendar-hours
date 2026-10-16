@@ -16,3 +16,8 @@ export const WEEK_START = {
   MONDAY: 'monday',
   SUNDAY: 'sunday',
 };
+
+export const VIEW = {
+  HOURS: 'hours',
+  PLANNER: 'planner',
+};

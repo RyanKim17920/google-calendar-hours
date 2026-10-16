@@ -4,7 +4,7 @@ import 'dayjs/locale/de';
 
 import { loadCalendarEvents, selectCalendarEvents } from './calendarEvents';
 import { updateConfig } from './storage';
-import { RANGE_TYPE, WEEK_START } from '../constants';
+import { RANGE_TYPE, VIEW, WEEK_START } from '../constants';
 import roundHours from '../utils/roundHours';
 
 export const viewState = createSlice({
@@ -40,12 +40,21 @@ export const viewState = createSlice({
     setEnd: (state, { payload }) => {
       state.currentDatePointerEnd = payload;
     },
+    setView: (state, { payload }) => {
+      state.view = payload;
+    },
   },
 });
 
 export const { changeRange, resetRange } = viewState.actions;
-const { setSelectedCalendarId, setRangeType, setWeekStart, setStart, setEnd } =
-  viewState.actions;
+const {
+  setSelectedCalendarId,
+  setRangeType,
+  setWeekStart,
+  setStart,
+  setEnd,
+  setView,
+} = viewState.actions;
 
 export const selectSelectedCalendar = (state) =>
   state.viewState.selectedCalendarId;
@@ -54,6 +63,7 @@ export const selectDate = (state) => state.viewState.currentDatePointerStart;
 
 export const selectRangeType = (state) => state.viewState.selectedRangeType;
 export const selectWeekStart = (state) => state.viewState.weekStart;
+export const selectView = (state) => state.viewState.view ?? VIEW.HOURS;
 export const selectLocaleForWeekStart = (state) =>
   state.viewState.weekStart === WEEK_START.SUNDAY ? 'en' : 'de';
 
@@ -182,6 +192,14 @@ export const changeRangeType =
 export const changeWeekStart = (weekStart) => (dispatch) => {
   dispatch(setWeekStart(weekStart));
   updateConfig({ weekStart });
+};
+
+export const changeView = (view) => (dispatch) => {
+  if (!Object.values(VIEW).includes(view)) {
+    return;
+  }
+  dispatch(setView(view));
+  updateConfig({ view });
 };
 
 export const changeStart = (start) => (dispatch) => {
