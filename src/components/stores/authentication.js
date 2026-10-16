@@ -8,5 +8,6 @@ export const authentication = createSlice({
 
 export const selectAccessToken = (state) => state.authentication.accessToken;
 export const selectHasToken = (state) => Boolean(selectAccessToken(state));
+export const selectAuthError = (state) => state.authentication.error ?? null;
 
 export default authentication.reducer;

@@ -7,7 +7,7 @@ import calendars from './calendars';
 import viewState from './viewState';
 import calendarEvents from './calendarEvents';
 import selection, { getSelectionState } from './selection';
-import { getConfig } from './storage';
+import { getAuthError, getConfig } from './storage';
 import { RANGE_TYPE, VIEW, WEEK_START } from '../constants';
 
 dayjs.extend(weekday);
@@ -46,7 +46,7 @@ const store = () =>
       selection,
     },
     preloadedState: {
-      authentication: { accessToken: getAccessToken() },
+      authentication: { accessToken: getAccessToken(), error: getAuthError() },
       viewState: getViewState(),
       selection: getSelectionState(),
     },
