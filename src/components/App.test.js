@@ -16,6 +16,70 @@ import App from './App';
 jest.mock('./utils/createBlobUrl', () => (content) => content);
 
 const mockCalendarResponse = jest.fn();
+const mockCalendarRequest = jest.fn();
+
+const googleError = ({ code, reason, status, detailsReason }) => ({
+  error: {
+    code,
+    message: `Google error ${reason}`,
+    errors: reason ? [{ message: `Google error ${reason}`, reason }] : [],
+    status,
+    details: detailsReason
+      ? [
+          {
+            '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+            reason: detailsReason,
+          },
+        ]
+      : undefined,
+  },
+});
+
+// access tokens that make the calendarList endpoint fail like Google does
+const calendarErrorResponses = {
+  'return-401': {
+    status: 401,
+    body: googleError({
+      code: 401,
+      reason: 'authError',
+      status: 'UNAUTHENTICATED',
+    }),
+  },
+  'return-403-disabled': {
+    status: 403,
+    body: googleError({
+      code: 403,
+      reason: 'accessNotConfigured',
+      status: 'PERMISSION_DENIED',
+      detailsReason: 'SERVICE_DISABLED',
+    }),
+  },
+  'return-403-disabled-details-only': {
+    status: 403,
+    body: googleError({
+      code: 403,
+      status: 'PERMISSION_DENIED',
+      detailsReason: 'SERVICE_DISABLED',
+    }),
+  },
+  'return-403-scope': {
+    status: 403,
+    body: googleError({
+      code: 403,
+      reason: 'insufficientPermissions',
+      status: 'PERMISSION_DENIED',
+      detailsReason: 'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+    }),
+  },
+  'return-500-unknown': {
+    status: 500,
+    body: googleError({
+      code: 500,
+      reason: 'backendError',
+      status: 'INTERNAL',
+    }),
+  },
+};
 const mockEventsResponse = jest.fn();
 
 const testEvents = [
@@ -46,6 +110,8 @@ beforeEach(() => {
   );
 
   window.sessionStorage.setItem('accessToken', 'ABC123');
+  window.sessionStorage.removeItem('authError');
+  mockCalendarRequest.mockClear();
   mockCalendarResponse.mockReturnValue([
     { id: 'test-id', summary: 'test-name' },
   ]);
@@ -58,6 +124,17 @@ const server = setupServer(
     ({ request }) => {
       const url = new URL(request.url);
       const accessToken = url.searchParams.get('access_token');
+      mockCalendarRequest(accessToken);
+
+      const errorResponse = calendarErrorResponses[accessToken];
+      if (errorResponse) {
+        return new Response(JSON.stringify(errorResponse.body), {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          status: errorResponse.status,
+        });
+      }
 
       return new Response(JSON.stringify({ items: mockCalendarResponse() }), {
         headers: {
@@ -162,6 +239,167 @@ it('delete access token from sessionStorage and does redirect when API returns n
   );
 
   expect(window.location).toBe('/');
+  expect(JSON.parse(window.sessionStorage.getItem('authError'))).toEqual({
+    reason: null,
+    message: 'Google API responded with 403',
+  });
+});
+
+describe('auth errors', () => {
+  const ENABLE_API_HINT =
+    'Enable the Google Calendar API in your Google Cloud project (APIs & Services → Library → Google Calendar API), wait a minute, then retry.';
+  const SCOPE_HINT =
+    "Tick the calendar permission checkboxes on Google's consent screen, then retry.";
+
+  // Simulates the full page load that follows `window.location = '/'`.
+  const reload = () => {
+    window.location = { origin: 'http://test.com', pathname: '/', hash: '' };
+    return renderApp();
+  };
+
+  const failCalendarsWith = async (accessToken) => {
+    window.sessionStorage.setItem('accessToken', accessToken);
+    const { unmount } = renderApp();
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem('accessToken')).toEqual(null)
+    );
+    expect(window.location).toBe('/');
+    unmount();
+  };
+
+  it('shows the enable-API hint on 403 accessNotConfigured without looping', async () => {
+    await failCalendarsWith('return-403-disabled');
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(ENABLE_API_HINT);
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(
+      'Google said: Google error accessNotConfigured'
+    );
+    expect(screen.getByTestId('AuthLink')).toBeInTheDocument();
+    // back on the auth screen without a token: no further API calls, no loop
+    expect(mockCalendarRequest).toHaveBeenCalledTimes(1);
+    expect(window.location).toEqual({
+      origin: 'http://test.com',
+      pathname: '/',
+      hash: '',
+    });
+  });
+
+  it('shows the enable-API hint when only details carry SERVICE_DISABLED', async () => {
+    await failCalendarsWith('return-403-disabled-details-only');
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(ENABLE_API_HINT);
+  });
+
+  it('shows the permission hint on 403 insufficientPermissions', async () => {
+    await failCalendarsWith('return-403-scope');
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(SCOPE_HINT);
+    expect(mockCalendarRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the raw Google message for unknown errors', async () => {
+    await failCalendarsWith('return-500-unknown');
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(
+      'Google error backendError'
+    );
+    expect(screen.getByTestId('AuthError')).not.toHaveTextContent(
+      'Google said'
+    );
+  });
+
+  it('returns to auth without an error on 401 (expired token)', async () => {
+    await failCalendarsWith('return-401');
+
+    expect(window.sessionStorage.getItem('authError')).toEqual(null);
+
+    reload();
+
+    expect(screen.queryByTestId('AuthError')).not.toBeInTheDocument();
+    expect(screen.getByTestId('AuthLink')).toBeInTheDocument();
+  });
+
+  it('shows #error=access_denied from the OAuth redirect', () => {
+    window.sessionStorage.removeItem('accessToken');
+    window.location = new URL('https://www.example.com/#error=access_denied');
+
+    const { unmount } = renderApp();
+
+    expect(window.location).toBe('/');
+    unmount();
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(
+      "Access was denied on Google's consent screen."
+    );
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(
+      'Google said: access_denied'
+    );
+    expect(mockCalendarRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects a token whose granted scope lacks calendar.readonly', () => {
+    window.sessionStorage.removeItem('accessToken');
+    window.location = new URL(
+      'https://www.example.com/#access_token=ABC123&token_type=Bearer&expires_in=3599&scope=email%20https://www.googleapis.com/auth/calendar.events.readonly'
+    );
+
+    const { unmount } = renderApp();
+
+    expect(window.sessionStorage.getItem('accessToken')).toEqual(null);
+    expect(window.location).toBe('/');
+    unmount();
+
+    reload();
+
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(SCOPE_HINT);
+    expect(screen.getByTestId('AuthError')).toHaveTextContent(
+      'Granted scopes: email https://www.googleapis.com/auth/calendar.events.readonly'
+    );
+    expect(mockCalendarRequest).not.toHaveBeenCalled();
+  });
+
+  it('accepts a token with calendar.readonly granted and clears an old error', () => {
+    window.sessionStorage.removeItem('accessToken');
+    window.sessionStorage.setItem(
+      'authError',
+      JSON.stringify({ reason: 'access_denied', message: 'access_denied' })
+    );
+    window.location = new URL(
+      'https://www.example.com/#access_token=ya29.a0-xyz&token_type=Bearer&expires_in=3599&scope=https://www.googleapis.com/auth/calendar.readonly%20https://www.googleapis.com/auth/calendar.events.readonly'
+    );
+
+    renderApp();
+
+    expect(window.sessionStorage.getItem('accessToken')).toEqual('ya29.a0-xyz');
+    expect(window.sessionStorage.getItem('authError')).toEqual(null);
+    expect(window.location).toBe('/');
+  });
+
+  it('clears the error when the user starts a new authorization', () => {
+    window.sessionStorage.removeItem('accessToken');
+    window.sessionStorage.setItem(
+      'authError',
+      JSON.stringify({ reason: 'accessNotConfigured', message: 'nope' })
+    );
+
+    reload();
+    const authLink = screen.getByTestId('AuthLink');
+    // jsdom can't navigate; only the click handler matters here
+    authLink.addEventListener('click', (event) => event.preventDefault());
+    fireEvent.click(authLink);
+
+    expect(window.sessionStorage.getItem('authError')).toEqual(null);
+  });
 });
 
 it('renders "loading" without calendars', () => {
