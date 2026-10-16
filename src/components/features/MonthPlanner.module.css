@@ -1,0 +1,122 @@
+.planner > * {
+  margin-bottom: 8px;
+}
+
+.message {
+  color: grey;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  touch-action: none;
+  user-select: none;
+}
+
+.gridSingle {
+  max-width: 480px;
+  grid-template-columns: 1fr;
+}
+
+.month {
+  padding: 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+
+.monthHeader {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 4px;
+  border: 0;
+  margin-bottom: 4px;
+  background: none;
+  border-radius: 4px;
+}
+
+.monthHeader:hover {
+  background-color: #f1f3f5;
+}
+
+.monthName {
+  font-weight: bold;
+}
+
+.monthHours {
+  color: grey;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekdays,
+.days {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekdays {
+  color: grey;
+  font-size: 11px;
+  text-align: center;
+}
+
+.day,
+.dayOutside {
+  min-height: 42px;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+  border: 2px solid transparent;
+  background-color: rgba(13, 110, 253, calc(var(--heat, 0) * 0.18));
+  border-radius: 4px;
+  color: #212529;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.day:hover {
+  border-color: #adb5bd;
+}
+
+.day:focus-visible {
+  outline: 2px solid #0d6efd;
+  outline-offset: 1px;
+}
+
+.dayToday {
+  border-color: #fd7e14;
+}
+
+.daySelected {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.dayNumber {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dayHours {
+  min-height: 1.1em;
+  font-size: 10px;
+}
+
+.dayEmpty .dayHours {
+  opacity: 0.5;
+}
