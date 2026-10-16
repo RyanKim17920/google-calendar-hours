@@ -10,6 +10,11 @@
   margin: 8px 8px 0;
 }
 
+.appWide {
+  width: 100%;
+  max-width: 1140px;
+}
+
 .app h3 {
   padding-top: 20px;
   color: grey;

@@ -10,17 +10,20 @@ import RangeDisplay from './features/RangeDisplay';
 import Events from './features/Events';
 import WeekStart from './features/WeekStart';
 import ShowDetailsButton from './features/ShowDetailsButton';
+import ViewToggle from './features/ViewToggle';
+import MonthPlanner from './features/MonthPlanner';
 import {
   selectSelectedCalendar,
   selectRangeType,
   selectHours,
+  selectView,
 } from './stores/viewState';
 import {
   selectCalendarEvents,
   selectIsEventsLoading,
 } from './stores/calendarEvents';
 import { loadCalendars, selectCalendars } from './stores/calendars';
-import { RANGE_TYPE } from './constants';
+import { RANGE_TYPE, VIEW } from './constants';
 
 import styles from './Interface.module.css';
 
@@ -43,12 +46,15 @@ const Interface = () => {
   const eventsLoading = useSelector(selectIsEventsLoading);
   const rangeType = useSelector(selectRangeType);
   const hours = useSelector(selectHours);
+  const view = useSelector(selectView);
 
   return (
     <div className={styles.interface}>
+      <ViewToggle />
       {calendars ? <CalendarsList /> : <div>loading</div>}
-      {eventsLoading && 'loading'}
-      {events && (
+      {view === VIEW.PLANNER && calendars && <MonthPlanner />}
+      {view === VIEW.HOURS && eventsLoading && 'loading'}
+      {view === VIEW.HOURS && events && (
         <Fragment>
           <Range />
           {rangeType !== RANGE_TYPE.TOTAL &&

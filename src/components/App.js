@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { decode } from 'qss';
+import cx from 'classnames';
 
 import { selectHasToken } from './stores/authentication';
+import { selectView } from './stores/viewState';
+import { VIEW } from './constants';
 
 import AuthScreen from './AuthScreen';
 import Interface from './Interface';
@@ -13,6 +16,7 @@ import styles from './App.module.css';
 
 const App = () => {
   const hasToken = useSelector(selectHasToken);
+  const isPlanner = useSelector(selectView) === VIEW.PLANNER;
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -30,7 +34,12 @@ const App = () => {
 
   return (
     <div className={styles.appWrapper}>
-      <div className={styles.app}>
+      <div
+        className={cx(styles.app, {
+          // The month grid needs more room than the narrow hours column.
+          [styles.appWide]: isClient && hasToken && isPlanner,
+        })}
+      >
         <div className={styles.sticky}>
           <div className={styles.content}>
             <h1 className={styles.headline}>
