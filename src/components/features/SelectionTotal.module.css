@@ -29,7 +29,9 @@
   list-style: none;
 }
 
-.chip {
+/* Bootstrap's global CSS loads after the CSS modules, so a lone .chip would
+   lose to .badge (white text); the extra class raises specificity. */
+.chips .chip {
   color: #212529;
   background-color: #e9ecef;
   font-variant-numeric: tabular-nums;
