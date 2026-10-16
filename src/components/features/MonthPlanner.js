@@ -38,6 +38,14 @@ const HEAT_FULL_HOURS = 10;
 // Minimum intensity of any day with hours, so a short day is still visible.
 const HEAT_FLOOR = 0.25;
 
+// Grid layout per months shown, so e.g. 3 months don't leave an empty 4th
+// column on desktop.
+const GRID_CLASS_BY_MONTHS_SHOWN = {
+  1: styles.gridOne,
+  3: styles.gridThree,
+  12: styles.gridTwelve,
+};
+
 const getWeekdayNames = (weekStart) =>
   weekStart === WEEK_START.SUNDAY
     ? WEEKDAY_NAMES
@@ -401,9 +409,7 @@ const MonthPlanner = () => {
           that is also reachable and operable by keyboard. */}
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
-        className={cx(styles.grid, {
-          [styles.gridSingle]: monthsShown === 1,
-        })}
+        className={cx(styles.grid, GRID_CLASS_BY_MONTHS_SHOWN[monthsShown])}
         onPointerDown={handlePointerDown}
       >
         {months.map((month) => (

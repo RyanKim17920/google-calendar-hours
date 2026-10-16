@@ -1868,6 +1868,10 @@ describe('day planner', () => {
   it('shows 3 and 12 months and persists the layout', async () => {
     await renderPlanner();
 
+    // Grid columns follow the months shown (no empty 4th column for 3).
+    const grid = () => screen.getAllByRole('region')[0].parentElement;
+    expect(grid()).toHaveClass('gridOne');
+
     fireEvent.click(screen.getByRole('button', { name: '3 mo' }));
 
     expect(screen.getByRole('button', { name: '3 mo' })).toHaveAttribute(
@@ -1878,10 +1882,13 @@ describe('day planner', () => {
       screen.getAllByRole('region').map((region) => region.dataset.month)
     ).toEqual(['2018-01', '2018-02', '2018-03']);
     expect(readConfig().monthsShown).toBe(3);
+    expect(grid()).toHaveClass('gridThree');
+    expect(grid()).not.toHaveClass('gridTwelve');
 
     fireEvent.click(screen.getByRole('button', { name: '12 mo' }));
 
     expect(screen.getAllByRole('region')).toHaveLength(12);
+    expect(grid()).toHaveClass('gridTwelve');
     expect(
       screen.getByRole('region', { name: 'December 2018' })
     ).toBeInTheDocument();

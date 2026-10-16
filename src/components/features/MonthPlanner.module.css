@@ -1,3 +1,8 @@
+.planner {
+  /* Room between the last row of months and the page footer. */
+  padding-bottom: 24px;
+}
+
 .planner > * {
   margin-bottom: 8px;
 }
@@ -16,7 +21,6 @@
 .grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 
   /* Vertical swipes must still scroll the page on touch screens (the grid
      fills the viewport on phones); a drag that starts sideways selects days
@@ -26,9 +30,37 @@
   user-select: none;
 }
 
-.gridSingle {
+.gridOne {
   max-width: 480px;
   grid-template-columns: 1fr;
+}
+
+.gridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gridTwelve {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 991px) {
+  .gridTwelve {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .gridThree,
+  .gridTwelve {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 575px) {
+  .gridThree,
+  .gridTwelve {
+    grid-template-columns: 1fr;
+  }
 }
 
 .month {
