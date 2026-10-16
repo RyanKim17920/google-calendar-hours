@@ -9,6 +9,14 @@ import roundHours from '../utils/roundHours';
 export const MONTHS_SHOWN_OPTIONS = [1, 3, 12];
 const DEFAULT_MONTHS_SHOWN = 1;
 
+// Planner layouts: one continuous stream of weeks, or separate month cards
+// (monthsShown of them).
+export const PLANNER_LAYOUT = {
+  CONTINUOUS: 'continuous',
+  MONTHS: 'months',
+};
+const PLANNER_LAYOUTS = Object.values(PLANNER_LAYOUT);
+
 const DAY_FORMAT = 'YYYY-MM-DD';
 const MONTH_FORMAT = 'YYYY-MM';
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -76,6 +84,7 @@ export const applyDaysSelected = (selectedDays, { from, to, selected }) => {
 
 const getDefaultState = () => ({
   selectedDays: [],
+  layout: PLANNER_LAYOUT.CONTINUOUS,
   monthsShown: DEFAULT_MONTHS_SHOWN,
   anchorMonth: getCurrentMonth(),
 });
@@ -109,9 +118,16 @@ export const selection = createSlice({
     clearSelection: (state) => {
       state.selectedDays = [];
     },
+    // Picking a month count switches to the month cards layout.
     setMonthsShown: (state, { payload }) => {
       if (MONTHS_SHOWN_OPTIONS.includes(payload)) {
         state.monthsShown = payload;
+        state.layout = PLANNER_LAYOUT.MONTHS;
+      }
+    },
+    setLayout: (state, { payload }) => {
+      if (PLANNER_LAYOUTS.includes(payload)) {
+        state.layout = payload;
       }
     },
     setAnchorMonth: (state, { payload }) => {
@@ -134,6 +150,7 @@ export const { setAnchorMonth, changeAnchorMonth } = selection.actions;
 
 export const selectSelectedDays = (state) => state.selection.selectedDays;
 export const selectMonthsShown = (state) => state.selection.monthsShown;
+export const selectLayout = (state) => state.selection.layout;
 export const selectAnchorMonth = (state) => state.selection.anchorMonth;
 
 export const selectSelectedDaySet = createSelector(
@@ -145,6 +162,7 @@ export const selectSelectedDaySet = createSelector(
 const persistSelection = (state) => {
   updateConfig({
     selectedDays: selectSelectedDays(state),
+    layout: selectLayout(state),
     monthsShown: selectMonthsShown(state),
   });
 };
@@ -164,6 +182,20 @@ export const setDaysSelected = withPersistence(
 export const toggleMonth = withPersistence(selection.actions.toggleMonth);
 export const clearSelection = withPersistence(selection.actions.clearSelection);
 export const setMonthsShown = withPersistence(selection.actions.setMonthsShown);
+export const setLayout = withPersistence(selection.actions.setLayout);
+
+// Configs saved before layouts existed always carry monthsShown (it was
+// persisted with every selection change): those users keep their month
+// cards. Without any planner config (a new user) the continuous layout is
+// the default.
+const getStoredLayout = (config) => {
+  if (PLANNER_LAYOUTS.includes(config.layout)) {
+    return config.layout;
+  }
+  return MONTHS_SHOWN_OPTIONS.includes(config.monthsShown)
+    ? PLANNER_LAYOUT.MONTHS
+    : PLANNER_LAYOUT.CONTINUOUS;
+};
 
 export const getSelectionState = () => {
   const config = getConfig() ?? {};
@@ -173,6 +205,7 @@ export const getSelectionState = () => {
     selectedDays: Array.isArray(config.selectedDays)
       ? normalizeDays(config.selectedDays)
       : defaults.selectedDays,
+    layout: getStoredLayout(config),
     monthsShown: MONTHS_SHOWN_OPTIONS.includes(config.monthsShown)
       ? config.monthsShown
       : defaults.monthsShown,

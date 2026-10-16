@@ -8,11 +8,13 @@ import reducer, {
   toggleMonth,
   clearSelection,
   setMonthsShown,
+  setLayout,
   setAnchorMonth,
   changeAnchorMonth,
   getSelectionState,
   selectSelectedDays,
   selectMonthsShown,
+  selectLayout,
   selectAnchorMonth,
   selectSelectedDaySet,
 } from './selection';
@@ -21,6 +23,7 @@ const raw = selection.actions;
 
 const stateWith = (selectedDays = [], rest = {}) => ({
   selectedDays,
+  layout: 'continuous',
   monthsShown: 1,
   anchorMonth: '2026-10',
   ...rest,
@@ -38,9 +41,10 @@ afterEach(() => {
 });
 
 describe('initial state', () => {
-  it('defaults to no days, one month, current month as anchor', () => {
+  it('defaults to no days, the continuous layout, current month as anchor', () => {
     expect(reducer(undefined, { type: '@@INIT' })).toEqual({
       selectedDays: [],
+      layout: 'continuous',
       monthsShown: 1,
       anchorMonth: '2026-10',
     });
@@ -237,12 +241,37 @@ describe('other reducers', () => {
     ).toEqual([]);
   });
 
-  it.each([1, 3, 12])('setMonthsShown accepts %p', (n) => {
-    expect(reducer(stateWith(), raw.setMonthsShown(n)).monthsShown).toBe(n);
-  });
+  it.each([1, 3, 12])(
+    'setMonthsShown accepts %p and switches to month cards',
+    (n) => {
+      const state = reducer(stateWith(), raw.setMonthsShown(n));
+      expect(state.monthsShown).toBe(n);
+      expect(state.layout).toBe('months');
+    }
+  );
 
   it.each([0, 2, '3', null])('setMonthsShown rejects %p', (n) => {
-    expect(reducer(stateWith(), raw.setMonthsShown(n)).monthsShown).toBe(1);
+    const state = reducer(stateWith(), raw.setMonthsShown(n));
+    expect(state.monthsShown).toBe(1);
+    expect(state.layout).toBe('continuous');
+  });
+
+  it('setLayout switches layouts and keeps the month count', () => {
+    const months = reducer(
+      stateWith([], { monthsShown: 12 }),
+      raw.setLayout('months')
+    );
+    expect(months).toMatchObject({ layout: 'months', monthsShown: 12 });
+    expect(reducer(months, raw.setLayout('continuous'))).toMatchObject({
+      layout: 'continuous',
+      monthsShown: 12,
+    });
+  });
+
+  it.each(['grid', 3, null, undefined])('setLayout rejects %p', (layout) => {
+    expect(reducer(stateWith(), raw.setLayout(layout)).layout).toBe(
+      'continuous'
+    );
   });
 
   it('changeAnchorMonth moves across year boundaries', () => {
@@ -272,10 +301,11 @@ describe('store wiring and persistence', () => {
     const store = createStore();
     expect(selectSelectedDays(store.getState())).toEqual([]);
     expect(selectMonthsShown(store.getState())).toBe(1);
+    expect(selectLayout(store.getState())).toBe('continuous');
     expect(selectAnchorMonth(store.getState())).toBe('2026-10');
   });
 
-  it('persists selectedDays and monthsShown, and restores them on init', () => {
+  it('persists selectedDays, layout and monthsShown, and restores them on init', () => {
     window.localStorage.setItem(
       'config',
       JSON.stringify({ selectedCalendarId: 'keep-me' })
@@ -293,12 +323,14 @@ describe('store wiring and persistence', () => {
     expect(readConfig()).toEqual({
       selectedCalendarId: 'keep-me',
       selectedDays: ['2026-10-05', '2026-10-06', '2026-10-07'],
+      layout: 'months',
       monthsShown: 3,
     });
 
     const reloaded = createStore();
     expect(reloaded.getState().selection).toEqual({
       selectedDays: ['2026-10-05', '2026-10-06', '2026-10-07'],
+      layout: 'months',
       monthsShown: 3,
       // anchorMonth is not persisted
       anchorMonth: '2026-10',
@@ -322,6 +354,7 @@ describe('store wiring and persistence', () => {
     );
     expect(getSelectionState()).toEqual({
       selectedDays: ['2026-10-01', '2026-10-05'],
+      layout: 'continuous',
       monthsShown: 1,
       anchorMonth: '2026-10',
     });
@@ -334,11 +367,70 @@ describe('store wiring and persistence', () => {
     );
     expect(getSelectionState()).toEqual({
       selectedDays: [],
+      layout: 'months',
       monthsShown: 12,
       anchorMonth: '2026-10',
     });
     window.localStorage.setItem('config', '{not json');
-    expect(getSelectionState().selectedDays).toEqual([]);
+    expect(getSelectionState()).toMatchObject({
+      selectedDays: [],
+      layout: 'continuous',
+    });
+  });
+
+  it('persists the layout and restores it after switching back', () => {
+    const store = createStore();
+    store.dispatch(setMonthsShown(12));
+    store.dispatch(setLayout('continuous'));
+
+    expect(readConfig()).toMatchObject({
+      layout: 'continuous',
+      monthsShown: 12,
+    });
+    expect(createStore().getState().selection).toMatchObject({
+      layout: 'continuous',
+      monthsShown: 12,
+    });
+  });
+
+  describe('layout migration', () => {
+    const loadWith = (config) => {
+      window.localStorage.setItem('config', JSON.stringify(config));
+      return getSelectionState();
+    };
+
+    it('defaults new users (no planner config) to the continuous layout', () => {
+      expect(
+        loadWith({ selectedCalendarId: 'x', view: 'planner' }).layout
+      ).toBe('continuous');
+      window.localStorage.removeItem('config');
+      expect(getSelectionState().layout).toBe('continuous');
+    });
+
+    it.each([1, 3, 12])(
+      'keeps month cards for configs saved before layouts (monthsShown %p)',
+      (monthsShown) => {
+        expect(loadWith({ selectedDays: [], monthsShown })).toMatchObject({
+          layout: 'months',
+          monthsShown,
+        });
+      }
+    );
+
+    it('prefers a stored valid layout over the legacy fallback', () => {
+      expect(loadWith({ layout: 'continuous', monthsShown: 3 })).toMatchObject({
+        layout: 'continuous',
+        monthsShown: 3,
+      });
+    });
+
+    it.each([['grid'], [7], [null]])(
+      'ignores an invalid stored layout %p',
+      (layout) => {
+        expect(loadWith({ layout }).layout).toBe('continuous');
+        expect(loadWith({ layout, monthsShown: 3 }).layout).toBe('months');
+      }
+    );
   });
 });
 
