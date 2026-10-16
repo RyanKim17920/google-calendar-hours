@@ -141,6 +141,15 @@ const MonthCard = ({
     cells.reduce((sum, day) => sum + (day ? hoursByDay[day] ?? 0 : 0), 0)
   );
   const monthName = dayjs(`${month}-01`).format('MMMM YYYY');
+  // Checkbox-like state of the header toggle (includes the drag preview).
+  const days = cells.filter(Boolean);
+  const selectedCount = days.filter(isDaySelected).length;
+  let monthPressed = 'false';
+  if (selectedCount === days.length) {
+    monthPressed = 'true';
+  } else if (selectedCount > 0) {
+    monthPressed = 'mixed';
+  }
 
   return (
     <section className={styles.month} aria-label={monthName} data-month={month}>
@@ -151,9 +160,19 @@ const MonthCard = ({
         aria-label={`Toggle all days of ${monthName}, ${formatHoursLabel(
           monthHours
         )}`}
+        aria-pressed={monthPressed}
         onClick={() => dispatch(toggleMonth(month))}
       >
-        <span className={styles.monthName}>{monthName}</span>
+        <span className={styles.monthTitle}>
+          <span
+            className={cx(styles.monthCheck, {
+              [styles.monthCheckAll]: monthPressed === 'true',
+              [styles.monthCheckSome]: monthPressed === 'mixed',
+            })}
+            aria-hidden="true"
+          />
+          <span className={styles.monthName}>{monthName}</span>
+        </span>
         <span className={styles.monthHours}>{`${monthHours} h`}</span>
       </button>
       <div

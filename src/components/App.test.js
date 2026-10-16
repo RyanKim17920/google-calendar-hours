@@ -1777,14 +1777,21 @@ describe('day planner', () => {
       name: /^Toggle all days of January 2018/,
     });
 
+    expect(header).toHaveAttribute('title');
+    expect(header).toHaveAttribute('aria-pressed', 'false');
+
     fireEvent.click(getDay('2018-01-05'));
+    expect(header).toHaveAttribute('aria-pressed', 'mixed');
+
     fireEvent.click(header);
 
+    expect(header).toHaveAttribute('aria-pressed', 'true');
     expect(getTotal()).toHaveTextContent('31 days · 5.5 h');
     expect(getTotal()).toHaveTextContent('Jan 2018: 31 d · 5.5 h');
 
     fireEvent.click(header);
 
+    expect(header).toHaveAttribute('aria-pressed', 'false');
     expect(getTotal()).toHaveTextContent('0 days · 0 h');
   });
 
