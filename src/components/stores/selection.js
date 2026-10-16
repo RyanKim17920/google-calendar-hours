@@ -62,6 +62,18 @@ const removeDays = (selectedDays, days) => {
   return selectedDays.filter((day) => !toRemove.has(day));
 };
 
+// Selected days after selecting (or deselecting) the inclusive range
+// from..to. Shared by the reducer and the planner's drag preview.
+export const applyDaysSelected = (selectedDays, { from, to, selected }) => {
+  if (!isValidDay(from) || !isValidDay(to)) {
+    return selectedDays;
+  }
+  const days = getDaysInRange(from, to);
+  return selected
+    ? addDays(selectedDays, days)
+    : removeDays(selectedDays, days);
+};
+
 const getDefaultState = () => ({
   selectedDays: [],
   monthsShown: DEFAULT_MONTHS_SHOWN,
@@ -80,14 +92,8 @@ export const selection = createSlice({
         ? removeDays(state.selectedDays, [day])
         : addDays(state.selectedDays, [day]);
     },
-    setDaysSelected: (state, { payload: { from, to, selected } }) => {
-      if (!isValidDay(from) || !isValidDay(to)) {
-        return;
-      }
-      const days = getDaysInRange(from, to);
-      state.selectedDays = selected
-        ? addDays(state.selectedDays, days)
-        : removeDays(state.selectedDays, days);
+    setDaysSelected: (state, { payload }) => {
+      state.selectedDays = applyDaysSelected(state.selectedDays, payload);
     },
     toggleMonth: (state, { payload: month }) => {
       if (!isValidMonth(month)) {
@@ -216,34 +222,37 @@ export const selectHoursByDay = createSelector(
   }
 );
 
+// Day count and hours of sorted 'YYYY-MM-DD' days, in total and per month.
+export const summarizeSelection = (selectedDays, hoursByDay) => {
+  let totalHours = 0;
+  const byMonth = [];
+
+  selectedDays.forEach((day) => {
+    const month = day.slice(0, MONTH_FORMAT.length);
+    const hours = hoursByDay[day] ?? 0;
+    let monthEntry = byMonth[byMonth.length - 1];
+    if (monthEntry?.month !== month) {
+      monthEntry = { month, dayCount: 0, hours: 0 };
+      byMonth.push(monthEntry);
+    }
+    monthEntry.dayCount += 1;
+    monthEntry.hours += hours;
+    totalHours += hours;
+  });
+
+  return {
+    dayCount: selectedDays.length,
+    totalHours: roundHours(totalHours),
+    byMonth: byMonth.map((entry) => ({
+      ...entry,
+      hours: roundHours(entry.hours),
+    })),
+  };
+};
+
 export const selectSelectionSummary = createSelector(
   [selectSelectedDays, selectHoursByDay],
-  (selectedDays, hoursByDay) => {
-    let totalHours = 0;
-    const byMonth = [];
-
-    selectedDays.forEach((day) => {
-      const month = day.slice(0, MONTH_FORMAT.length);
-      const hours = hoursByDay[day] ?? 0;
-      let monthEntry = byMonth[byMonth.length - 1];
-      if (monthEntry?.month !== month) {
-        monthEntry = { month, dayCount: 0, hours: 0 };
-        byMonth.push(monthEntry);
-      }
-      monthEntry.dayCount += 1;
-      monthEntry.hours += hours;
-      totalHours += hours;
-    });
-
-    return {
-      dayCount: selectedDays.length,
-      totalHours: roundHours(totalHours),
-      byMonth: byMonth.map((entry) => ({
-        ...entry,
-        hours: roundHours(entry.hours),
-      })),
-    };
-  }
+  summarizeSelection
 );
 
 export default selection.reducer;
