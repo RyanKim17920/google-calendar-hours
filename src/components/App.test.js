@@ -1694,10 +1694,15 @@ describe('day planner', () => {
     },
   ];
 
+  // Month cards unless a test asks for another layout.
   const setConfig = (config) =>
     window.localStorage.setItem(
       'config',
-      JSON.stringify({ selectedCalendarId: 'test-id', ...config })
+      JSON.stringify({
+        selectedCalendarId: 'test-id',
+        monthsShown: 1,
+        ...config,
+      })
     );
 
   const readConfig = () => JSON.parse(window.localStorage.getItem('config'));
@@ -1724,6 +1729,28 @@ describe('day planner', () => {
   beforeEach(() => {
     mockEventsResponse.mockReturnValue(plannerEvents);
     setConfig({ view: 'planner' });
+  });
+
+  // jsdom has no PointerEvent: fireEvent would fall back to a plain Event
+  // and drop clientX/clientY/pointerType.
+  beforeAll(() => {
+    window.PointerEvent = class extends MouseEvent {
+      constructor(type, init = {}) {
+        super(type, init);
+        this.pointerType = init.pointerType ?? 'mouse';
+        this.isPrimary = init.isPrimary ?? true;
+        this.pointerId = init.pointerId ?? 1;
+      }
+    };
+  });
+
+  afterAll(() => {
+    delete window.PointerEvent;
+  });
+
+  beforeEach(() => {
+    // jsdom doesn't implement scrolling.
+    window.scrollBy = jest.fn();
   });
 
   afterEach(() => {

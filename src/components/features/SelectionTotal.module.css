@@ -1,7 +1,4 @@
 .selectionTotal {
-  position: sticky;
-  z-index: 2;
-  top: 0;
   padding: 8px 0;
   border-bottom: 1px solid #dee2e6;
   background-color: #fff;
