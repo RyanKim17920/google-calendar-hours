@@ -1625,7 +1625,7 @@ describe('day planner', () => {
 
     // Preview only: rendered as selected, but not committed yet.
     expect(getDay('2018-01-07')).toHaveAttribute('aria-pressed', 'true');
-    expect(getTotal()).toHaveTextContent('0 days · 0 h');
+    expect(getTotal()).toHaveTextContent('7 days · 5.5 h');
     expect(readConfig().selectedDays).toBeUndefined();
 
     fireEvent.pointerUp(window);
@@ -1674,6 +1674,55 @@ describe('day planner', () => {
     expect(getDay('2018-01-05')).toHaveAttribute('aria-pressed', 'false');
     expect(getDay('2018-01-08')).toHaveAttribute('aria-pressed', 'false');
     expect(getDay('2018-01-09')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows the would-be total live during a drag and reverts on Escape', async () => {
+    // A committed day outside the shown month still counts.
+    setConfig({ view: 'planner', selectedDays: ['2018-02-02'] });
+    await renderPlanner();
+
+    expect(getTotal()).toHaveTextContent('1 day · 1 h');
+    const total = screen.getByText('1 day · 1 h');
+    expect(total).toHaveAttribute('data-preview', 'false');
+    expect(total).toHaveAttribute('aria-live', 'polite');
+
+    drag('2018-01-04', '2018-01-05');
+
+    expect(getTotal()).toHaveTextContent('3 days · 4.5 h');
+    expect(getTotal()).toHaveTextContent('Jan 2018: 2 d · 3.5 h');
+    expect(getTotal()).toHaveTextContent('Feb 2018: 1 d · 1 h');
+    expect(total).toHaveAttribute('data-preview', 'true');
+    expect(total).toHaveAttribute('aria-live', 'off');
+
+    mockElementFromPoint('2018-01-10');
+    fireEvent.pointerMove(window);
+
+    expect(getTotal()).toHaveTextContent('8 days · 6.5 h');
+    // Nothing is committed or persisted mid-drag.
+    expect(readConfig().selectedDays).toEqual(['2018-02-02']);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(getTotal()).toHaveTextContent('1 day · 1 h');
+    expect(getTotal()).not.toHaveTextContent('Jan 2018');
+    expect(total).toHaveAttribute('data-preview', 'false');
+
+    fireEvent.pointerUp(window);
+
+    expect(getTotal()).toHaveTextContent('1 day · 1 h');
+  });
+
+  it('shows a deselecting drag as a lower total before committing', async () => {
+    await renderPlanner();
+
+    drag('2018-01-01', '2018-01-12');
+    fireEvent.pointerUp(window);
+    expect(getTotal()).toHaveTextContent('12 days · 5.5 h');
+
+    drag('2018-01-05', '2018-01-08');
+
+    expect(getTotal()).toHaveTextContent('8 days · 2 h');
+    expect(readConfig().selectedDays).toHaveLength(12);
   });
 
   it('cancels a drag with Escape', async () => {

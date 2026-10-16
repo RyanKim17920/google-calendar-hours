@@ -1,27 +1,47 @@
+import { useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import cx from 'classnames';
 import dayjs from 'dayjs';
 
-import { clearSelection, selectSelectionSummary } from '../stores/selection';
+import {
+  clearSelection,
+  selectHoursByDay,
+  selectSelectedDays,
+  summarizeSelection,
+} from '../stores/selection';
 
 import styles from './SelectionTotal.module.css';
 
 const formatMonth = (month) => dayjs(`${month}-01`).format('MMM YYYY');
 
-const SelectionTotal = () => {
+// previewDays: the selection while a drag is in progress (not committed to
+// the store yet), so the total reflects the drag live; null otherwise.
+// eslint-disable-next-line react/prop-types
+const SelectionTotal = ({ previewDays = null }) => {
   const dispatch = useDispatch();
-  const { dayCount, totalHours, byMonth } = useSelector(selectSelectionSummary);
+  const selectedDays = useSelector(selectSelectedDays);
+  const hoursByDay = useSelector(selectHoursByDay);
+  const isPreview = previewDays !== null;
+  const { dayCount, totalHours, byMonth } = useMemo(
+    () => summarizeSelection(previewDays ?? selectedDays, hoursByDay),
+    [previewDays, selectedDays, hoursByDay]
+  );
 
   return (
     <div data-testid="SelectionTotal" className={styles.selectionTotal}>
       <div className={styles.row}>
-        <div className={styles.total} aria-live="polite">
+        <div
+          className={cx(styles.total, { [styles.totalPreview]: isPreview })}
+          data-preview={isPreview}
+          // Announce committed totals only, not every step of a drag.
+          aria-live={isPreview ? 'off' : 'polite'}
+        >
           {`${dayCount} ${dayCount === 1 ? 'day' : 'days'} · ${totalHours} h`}
         </div>
         <button
           type="button"
           className={cx('btn', 'btn-sm', 'btn-outline-secondary')}
-          disabled={dayCount === 0}
+          disabled={selectedDays.length === 0}
           onClick={() => dispatch(clearSelection())}
         >
           Clear

@@ -5,10 +5,12 @@ import dayjs from 'dayjs';
 
 import {
   MONTHS_SHOWN_OPTIONS,
+  applyDaysSelected,
   changeAnchorMonth,
   selectAnchorMonth,
   selectHoursByDay,
   selectMonthsShown,
+  selectSelectedDays,
   selectSelectedDaySet,
   setAnchorMonth,
   setDaysSelected,
@@ -186,6 +188,7 @@ const MonthPlanner = () => {
     selectCalendarEvents(state, selectedCalendar)
   );
   const hoursByDay = useSelector(selectHoursByDay);
+  const selectedDays = useSelector(selectSelectedDays);
   const selectedDaySet = useSelector(selectSelectedDaySet);
   const monthsShown = useSelector(selectMonthsShown);
   const anchorMonth = useSelector(selectAnchorMonth);
@@ -308,6 +311,20 @@ const MonthPlanner = () => {
     lastDayRef.current = day;
   };
 
+  // Selection as it would be if the active drag were committed now, null
+  // without one. Feeds the total bar so it shows the would-be total live.
+  const previewDays = useMemo(
+    () =>
+      drag && !drag.cancelled
+        ? applyDaysSelected(selectedDays, {
+            from: drag.anchor,
+            to: drag.end,
+            selected: drag.mode,
+          })
+        : null,
+    [drag, selectedDays]
+  );
+
   const isDaySelected = (day) => {
     if (drag && !drag.cancelled && isInRange(day, drag.anchor, drag.end)) {
       return drag.mode;
@@ -330,7 +347,7 @@ const MonthPlanner = () => {
 
   return (
     <div data-testid="MonthPlanner" className={styles.planner}>
-      <SelectionTotal />
+      <SelectionTotal previewDays={previewDays} />
       <div className={styles.controls}>
         <div className="btn-group btn-group-sm" role="group">
           <button

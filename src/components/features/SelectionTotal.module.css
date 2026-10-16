@@ -21,6 +21,10 @@
 }
 
 /* One line of chips: 20px badge + 6px gap above. */
+.totalPreview {
+  color: #0a58ca;
+}
+
 .chipRow {
   min-height: 26px;
   padding-top: 6px;
