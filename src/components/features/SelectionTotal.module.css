@@ -27,9 +27,13 @@
   padding-top: 6px;
 }
 
+/* One line that scrolls sideways: a long drag spans many months, and wrapped
+   chips would grow the sticky bar over much of a phone screen. */
 .chips {
   display: flex;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
   padding: 0;
   margin: 0;
   gap: 4px;
@@ -39,6 +43,7 @@
 /* Bootstrap's global CSS loads after the CSS modules, so a lone .chip would
    lose to .badge (white text); the extra class raises specificity. */
 .chips .chip {
+  flex-shrink: 0;
   color: #212529;
   background-color: #e9ecef;
   font-variant-numeric: tabular-nums;
