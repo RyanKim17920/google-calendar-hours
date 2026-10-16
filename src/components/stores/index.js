@@ -6,6 +6,7 @@ import authentication from './authentication';
 import calendars from './calendars';
 import viewState from './viewState';
 import calendarEvents from './calendarEvents';
+import selection, { getSelectionState } from './selection';
 import { getConfig } from './storage';
 import { RANGE_TYPE, WEEK_START } from '../constants';
 
@@ -41,10 +42,12 @@ const store = () =>
       calendars,
       viewState,
       calendarEvents,
+      selection,
     },
     preloadedState: {
       authentication: { accessToken: getAccessToken() },
       viewState: getViewState(),
+      selection: getSelectionState(),
     },
   });
 
