@@ -157,7 +157,8 @@ const useDayDrag = ({ selectedDays, selectedDaySet, areaRef, getTopEdge }) => {
       if (!active || active.cancelled || speed === 0) {
         return;
       }
-      window.scrollBy(0, speed);
+      // Instant: Bootstrap's smooth scroll-behavior would lag each step.
+      window.scrollBy({ top: speed, behavior: 'instant' });
       const { x, y } = pointerRef.current;
       const top = getTopEdgeRef.current?.() ?? 0;
       extendTo(x, Math.min(Math.max(y, top + 1), window.innerHeight - 1));

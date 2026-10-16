@@ -28,6 +28,10 @@ export const MONTHS_AFTER_ANCHOR = 8;
 export const EXTEND_BY_MONTHS = 6;
 // Distance (px) from the rendered top/bottom at which the stream extends.
 export const EXTEND_THRESHOLD_PX = 600;
+// Programmatic jumps (initial position, prepend compensation) pass
+// behavior 'instant': Bootstrap sets `scroll-behavior: smooth` on :root,
+// which would otherwise animate them and let scroll events read stale
+// positions mid-animation.
 // Prev/Next clicked within this time step from the month they scrolled to,
 // not from the (still smoothly scrolling) position.
 const NAV_SETTLE_MS = 700;
@@ -94,7 +98,10 @@ const ContinuousMonths = forwardRef(
     // Stream height before a prepend, to restore the scroll position after.
     const heightBeforePrependRef = useRef(null);
     // { month, behavior } to scroll to once it's rendered.
-    const pendingScrollRef = useRef({ month: anchorMonth, behavior: 'auto' });
+    const pendingScrollRef = useRef({
+      month: anchorMonth,
+      behavior: 'instant',
+    });
     const lastNavRef = useRef(null);
 
     const rows = useMemo(
@@ -140,10 +147,10 @@ const ContinuousMonths = forwardRef(
     useLayoutEffect(() => {
       const stream = streamRef.current;
       if (heightBeforePrependRef.current !== null && stream) {
-        window.scrollBy(
-          0,
-          stream.offsetHeight - heightBeforePrependRef.current
-        );
+        window.scrollBy({
+          top: stream.offsetHeight - heightBeforePrependRef.current,
+          behavior: 'instant',
+        });
         heightBeforePrependRef.current = null;
       }
       const { current: pending } = pendingScrollRef;

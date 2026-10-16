@@ -2410,7 +2410,8 @@ describe('day planner', () => {
         runFrame();
 
         expect(window.scrollBy).toHaveBeenCalledTimes(1);
-        const [[, speed]] = window.scrollBy.mock.calls;
+        const [[{ top: speed, behavior }]] = window.scrollBy.mock.calls;
+        expect(behavior).toBe('instant');
         expect(speed).toBeGreaterThan(0);
         expect(document.elementFromPoint).toHaveBeenLastCalledWith(100, 760);
         expect(getTotal()).toHaveTextContent('30 days · 6.5 h');
@@ -2419,7 +2420,7 @@ describe('day planner', () => {
         // Out of the window: full speed, probe clamped into the viewport.
         fireEvent.pointerMove(window, { clientX: 100, clientY: 900 });
         runFrame();
-        expect(window.scrollBy.mock.calls.at(-1)[1]).toBeGreaterThan(speed);
+        expect(window.scrollBy.mock.calls.at(-1)[0].top).toBeGreaterThan(speed);
         expect(document.elementFromPoint).toHaveBeenLastCalledWith(100, 767);
 
         // Back in the middle: the loop stops.
@@ -2444,7 +2445,7 @@ describe('day planner', () => {
         mockElementFromPoint('2017-12-28');
         runFrame();
 
-        expect(window.scrollBy.mock.calls[0][1]).toBeLessThan(0);
+        expect(window.scrollBy.mock.calls[0][0].top).toBeLessThan(0);
         expect(getTotal()).toHaveTextContent('24 days · 5.5 h');
       });
 
@@ -2603,7 +2604,7 @@ describe('day planner', () => {
 
         expect(window.scrollBy).toHaveBeenCalledWith({
           top: 120,
-          behavior: 'auto',
+          behavior: 'instant',
         });
       });
 
@@ -2699,7 +2700,10 @@ describe('day planner', () => {
         const added = stream.children.length - rowsBefore;
         expect(added).toBeGreaterThan(20);
         expect(window.scrollBy).toHaveBeenCalledTimes(1);
-        expect(window.scrollBy).toHaveBeenCalledWith(0, added * ROW_HEIGHT);
+        expect(window.scrollBy).toHaveBeenCalledWith({
+          top: added * ROW_HEIGHT,
+          behavior: 'instant',
+        });
         expect(getOverflowAnchor()).toBe('none');
       });
 
