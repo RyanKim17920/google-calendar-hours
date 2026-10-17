@@ -51,8 +51,14 @@ const getWeekdayNames = (weekStart) =>
     ? WEEKDAY_NAMES
     : [...WEEKDAY_NAMES.slice(1), WEEKDAY_NAMES[0]];
 
+// Months centered on the anchor: 1 -> [anchor], 3 -> anchor-1..anchor+1,
+// 12 -> anchor-5..anchor+6 (an even count puts the extra month after it).
 const getMonths = (anchorMonth, count) => {
-  const first = dayjs(`${anchorMonth}-01`);
+  const monthsBeforeAnchor = Math.floor((count - 1) / 2);
+  const first = dayjs(`${anchorMonth}-01`).subtract(
+    monthsBeforeAnchor,
+    'month'
+  );
   return Array.from({ length: count }, (_, index) =>
     first.add(index, 'month').format(MONTH_FORMAT)
   );

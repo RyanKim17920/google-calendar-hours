@@ -1709,6 +1709,8 @@ describe('day planner', () => {
   };
 
   const getDay = (day) => document.querySelector(`[data-day="${day}"]`);
+  const shownMonths = () =>
+    screen.getAllByRole('region').map((region) => region.dataset.month);
   const getTotal = () => screen.getByTestId('SelectionTotal');
 
   const mockElementFromPoint = (day) => {
@@ -2123,9 +2125,7 @@ describe('day planner', () => {
       'aria-pressed',
       'true'
     );
-    expect(
-      screen.getAllByRole('region').map((region) => region.dataset.month)
-    ).toEqual(['2018-01', '2018-02', '2018-03']);
+    expect(shownMonths()).toEqual(['2017-12', '2018-01', '2018-02']);
     expect(readConfig().monthsShown).toBe(3);
     expect(grid()).toHaveClass('gridThree');
     expect(grid()).not.toHaveClass('gridTwelve');
@@ -2134,9 +2134,89 @@ describe('day planner', () => {
 
     expect(screen.getAllByRole('region')).toHaveLength(12);
     expect(grid()).toHaveClass('gridTwelve');
-    expect(
-      screen.getByRole('region', { name: 'December 2018' })
-    ).toBeInTheDocument();
+    expect(shownMonths()[0]).toBe('2017-08');
+    expect(shownMonths()[5]).toBe('2018-01');
+    expect(shownMonths()[11]).toBe('2018-07');
+  });
+
+  describe('centering on the anchor month', () => {
+    // "Now" is Thu 15 Oct 2026 for these tests.
+    beforeEach(() => {
+      timekeeper.freeze(new Date('2026-10-15T10:00:00Z'));
+    });
+
+    const MAY_2026_TO_APR_2027 = [
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+      '2027-03',
+      '2027-04',
+    ];
+
+    it('shows only the anchor month in the 1 month layout', async () => {
+      await renderPlanner();
+
+      expect(shownMonths()).toEqual(['2026-10']);
+    });
+
+    it('centers the 3 month layout on the anchor month', async () => {
+      setConfig({ view: 'planner', monthsShown: 3 });
+
+      await renderPlanner();
+
+      expect(shownMonths()).toEqual(['2026-09', '2026-10', '2026-11']);
+      expect(
+        screen
+          .getAllByRole('region')
+          .map((region) => region.getAttribute('aria-label'))
+      ).toEqual(['September 2026', 'October 2026', 'November 2026']);
+    });
+
+    it('puts the anchor month 6th in the 12 month layout', async () => {
+      setConfig({ view: 'planner', monthsShown: 12 });
+
+      await renderPlanner();
+
+      expect(shownMonths()).toEqual(MAY_2026_TO_APR_2027);
+      expect(shownMonths()[5]).toBe('2026-10');
+      expect(shownMonths()[11]).toBe('2027-04');
+    });
+
+    it('shifts the centered window by one month with prev and next', async () => {
+      setConfig({ view: 'planner', monthsShown: 3 });
+
+      await renderPlanner();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+      expect(shownMonths()).toEqual(['2026-10', '2026-11', '2026-12']);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+      expect(shownMonths()).toEqual(['2026-08', '2026-09', '2026-10']);
+    });
+
+    it('re-centers on the current month with today', async () => {
+      setConfig({ view: 'planner', monthsShown: 12 });
+
+      await renderPlanner();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+      expect(shownMonths()[0]).toBe('2026-08');
+      expect(shownMonths()[5]).toBe('2027-01');
+      expect(shownMonths()[11]).toBe('2027-07');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+      expect(shownMonths()).toEqual(MAY_2026_TO_APR_2027);
+    });
   });
 
   it('drags a range across months in the 3 month layout', async () => {
