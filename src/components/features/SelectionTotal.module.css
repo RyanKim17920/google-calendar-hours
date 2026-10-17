@@ -1,4 +1,7 @@
 .selectionTotal {
+  position: sticky;
+  z-index: 2;
+  top: 0;
   padding: 8px 0;
   border-bottom: 1px solid #dee2e6;
   background-color: #fff;
@@ -27,13 +30,9 @@
   padding-top: 6px;
 }
 
-/* One line that scrolls sideways: a long drag spans many months, and wrapped
-   chips would grow the sticky bar over much of a phone screen. */
 .chips {
   display: flex;
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  scrollbar-width: none;
+  flex-wrap: wrap;
   padding: 0;
   margin: 0;
   gap: 4px;
@@ -43,7 +42,6 @@
 /* Bootstrap's global CSS loads after the CSS modules, so a lone .chip would
    lose to .badge (white text); the extra class raises specificity. */
 .chips .chip {
-  flex-shrink: 0;
   color: #212529;
   background-color: #e9ecef;
   font-variant-numeric: tabular-nums;
